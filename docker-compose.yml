@@ -1,0 +1,8 @@
+version: '3.8'
+
+services:
+  tests:
+    build: .
+    container_name: 'laravel-shopify-tests'
+    volumes:
+      - .:/app

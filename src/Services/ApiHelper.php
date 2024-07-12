@@ -314,6 +314,13 @@ class ApiHelper implements IApiHelper
                                 'currencyCode' => 'USD',
                             ],
                             'interval' => $payload->interval,
+                            'discount' => [
+                                'durationLimitInIntervals' => $payload->discountDuration,
+                                'value' => [
+                                    'amount' => $payload->discountAmount,
+                                    'percentage' => $payload->discountPercentage,
+                                ],
+                            ],
                         ],
                     ],
                 ],

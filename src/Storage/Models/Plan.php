@@ -24,6 +24,9 @@ class Plan extends Model
         'on_install' => 'bool',
         'capped_amount' => 'float',
         'price' => 'float',
+        'discount_duration' => 'int',
+        'discount_amount' => 'float',
+        'discount_percentage' => 'float',
     ];
 
     /**
@@ -134,5 +137,15 @@ class Plan extends Model
     public function isTest(): bool
     {
         return (bool) $this->test;
+    }
+
+    /**
+     * Checks if this plan has a discount.
+     *
+     * @return bool
+     */
+    public function hasDiscount(): bool
+    {
+        return isset($this->discount_amount) || isset($this->discount_percentage);
     }
 }

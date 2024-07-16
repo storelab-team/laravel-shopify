@@ -308,20 +308,25 @@ class ApiHelper implements IApiHelper
             'lineItems' => [
                 [
                     'plan' => [
-                        'appRecurringPricingDetails' => [
-                            'price' => [
-                                'amount' => $payload->price,
-                                'currencyCode' => 'USD',
-                            ],
-                            'interval' => $payload->interval,
-                            'discount' => [
-                                'durationLimitInIntervals' => $payload->discountDuration,
-                                'value' => [
-                                    'amount' => $payload->discountAmount,
-                                    'percentage' => $payload->discountPercentage,
+                        'appRecurringPricingDetails' => array_merge(
+                            [
+                                'price' => [
+                                    'amount' => $payload->price,
+                                    'currencyCode' => 'USD',
                                 ],
+                                'interval' => $payload->interval,
                             ],
-                        ],
+                            !$payload->discountDuration ? [] :
+                            [
+                               'discount' => [
+                                    'durationLimitInIntervals' => $payload->discountDuration,
+                                    'value' => [
+                                        'amount' => $payload->discountAmount,
+                                        'percentage' => $payload->discountPercentage,
+                                    ],
+                                ],
+                           ],
+                        ),
                     ],
                 ],
             ],

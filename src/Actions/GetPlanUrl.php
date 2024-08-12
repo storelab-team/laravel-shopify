@@ -71,7 +71,7 @@ class GetPlanUrl
 
         // Confirmation URL
         $api = $shop->apiHelper()
-            ->createChargeGraphQL($this->chargeHelper->details($plan, $shop, $host));
+            ->createChargeGraphQL(ChargeType::fromNative($plan->getType()->toNative()), $this->chargeHelper->details($plan, $shop, $host));
 
         $confirmationUrl = $api['confirmationUrl'];
 

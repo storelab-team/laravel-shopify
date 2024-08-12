@@ -272,8 +272,46 @@ class ApiHelper implements IApiHelper
      *
      * @throws Exception
      */
-    public function createChargeGraphQL(PlanDetailsTransfer $payload): ResponseAccess
+    public function createChargeGraphQL(ChargeType $chargeType, PlanDetailsTransfer $payload): ResponseAccess
     {
+        if ($chargeType->toNative() == ChargeType::ONETIME()->toNative()) {
+            $query = '
+            mutation appPurchaseOneTimeCreate(
+                $name: String!,
+                $price: MoneyInput!,
+                $returnUrl: URL!,
+                $test: Boolean
+            ) {
+                appPurchaseOneTimeCreate(
+                    name: $name,
+                    price: $price,
+                    returnUrl: $returnUrl,
+                    test: $test
+                ) {
+                    confirmationUrl
+                    userErrors {
+                        field
+                        message
+                    }
+                }
+            }
+            ';
+            $variables = [
+                'name' => $payload->name,
+                'price' => [
+                    'amount' => $payload->price,
+                    'currencyCode' => 'USD',
+                ],
+                'returnUrl' => $payload->returnUrl,
+                'test' => $payload->test,
+            ];
+
+
+            $response = $this->doRequestGraphQL($query, $variables);
+
+            return $response['body']['data']['appPurchaseOneTimeCreate'];
+        }
+
         $query = '
         mutation appSubscriptionCreate(
             $name: String!,
@@ -474,6 +512,7 @@ class ApiHelper implements IApiHelper
      */
     protected function chargeApiPath(ChargeType $chargeType): string
     {
+        dd($chargeType);
         // Convert to API path
         if ($chargeType->isSame(ChargeType::RECURRING())) {
             $format = '%s_application_charge';

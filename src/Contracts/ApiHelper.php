@@ -142,7 +142,7 @@ interface ApiHelper
      *
      * @return ResponseAccess
      */
-    public function createChargeGraphQL(PlanDetails $payload): ResponseAccess;
+    public function createChargeGraphQL(ChargeType $chargeType, PlanDetails $payload): ResponseAccess;
 
     /**
      * Get webhooks for the shop.

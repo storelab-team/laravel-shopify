@@ -512,7 +512,6 @@ class ApiHelper implements IApiHelper
      */
     protected function chargeApiPath(ChargeType $chargeType): string
     {
-        dd($chargeType);
         // Convert to API path
         if ($chargeType->isSame(ChargeType::RECURRING())) {
             $format = '%s_application_charge';

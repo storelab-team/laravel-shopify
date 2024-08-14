@@ -14,6 +14,17 @@ use Osiset\ShopifyApp\Util;
  */
 class Plan extends Model
 {
+    protected $fillable = [
+        'type',
+        'name',
+        'price',
+        'interval',
+        'discount_duration',
+        'discount_amount',
+        'discount_percentage',
+        'test'
+    ];
+
     /**
      * The attributes that should be casted to native types.
      *

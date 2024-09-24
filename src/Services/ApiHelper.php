@@ -354,7 +354,7 @@ class ApiHelper implements IApiHelper
                                 ],
                                 'interval' => $payload->interval,
                             ],
-                            !$payload->discountDuration ? [] :
+                            !$payload->discountDuration || $payload->discountDuration == 0 ? [] :
                             [
                                'discount' => [
                                     'durationLimitInIntervals' => $payload->discountDuration,

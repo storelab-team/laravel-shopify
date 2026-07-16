@@ -64,10 +64,10 @@ trait AuthController
                 'shopify-app::auth.fullpage_redirect',
                 [
                     'apiKey' => Util::getShopifyConfig('api_key', $shopOrigin),
-                    'appBridgeVersion' => Util::getShopifyConfig('appbridge_version') ? '@'.config('shopify-app.appbridge_version') : '',
-                    'authUrl' => $result['url'],
+                    'url' => $result['url'],
                     'host' => $request->get('host'),
                     'shopDomain' => $shopDomain,
+                    'locale' => $request->get('locale'),
                 ]
             );
         } else {
@@ -77,6 +77,7 @@ trait AuthController
                 [
                     'shop' => $shopDomain->toNative(),
                     'host' => $request->get('host'),
+                    'locale' => $request->get('locale'),
                 ]
             );
         }
@@ -91,29 +92,47 @@ trait AuthController
     {
         $request->session()->reflash();
         $shopDomain = ShopDomain::fromRequest($request);
-        $target = $request->query('target');
-        $query = parse_url($target, PHP_URL_QUERY);
 
-        $cleanTarget = $target;
-        if ($query) {
-            // remove "token" from the target's query string
-            $params = Util::parseQueryString($query);
-            $params['shop'] = $params['shop'] ?? $shopDomain->toNative() ?? '';
-            $params['host'] = $request->get('host');
-            unset($params['token']);
+        $target = Util::sanitizeTokenRedirectTarget(
+            $request->query('target'),
+            $request->getSchemeAndHttpHost()
+        );
 
-            $cleanTarget = trim(explode('?', $target)[0].'?'.http_build_query($params), '?');
-        } else {
-            $params = ['shop' => $shopDomain->toNative() ?? '', 'host' => $request->get('host')];
-            $cleanTarget = trim(explode('?', $target)[0].'?'.http_build_query($params), '?');
-        }
+        $fallbackPath = parse_url(route(Util::getShopifyConfig('route_names.home'), [], false), PHP_URL_PATH) ?: '/';
 
         return View::make(
             'shopify-app::auth.token',
             [
                 'shopDomain' => $shopDomain->toNative(),
-                'target' => $cleanTarget,
+                'target' => $this->buildCleanTokenTarget($request, $shopDomain, $target),
+                'fallbackTarget' => $this->buildCleanTokenTarget($request, $shopDomain, $fallbackPath),
             ]
         );
+    }
+
+    /**
+     * Build a token redirect target with shop, host, and locale query params.
+     */
+    protected function buildCleanTokenTarget(Request $request, ShopDomain $shopDomain, string $target): string
+    {
+        $query = parse_url($target, PHP_URL_QUERY);
+
+        if ($query) {
+            $params = Util::parseQueryString($query);
+            $params['shop'] = $params['shop'] ?? $shopDomain->toNative() ?? '';
+            $params['host'] = $request->get('host');
+            $params['locale'] = $request->get('locale');
+            unset($params['token']);
+
+            return trim(explode('?', $target)[0].'?'.http_build_query($params), '?');
+        }
+
+        $params = [
+            'shop' => $shopDomain->toNative() ?? '',
+            'host' => $request->get('host'),
+            'locale' => $request->get('locale'),
+        ];
+
+        return trim(explode('?', $target)[0].'?'.http_build_query($params), '?');
     }
 }

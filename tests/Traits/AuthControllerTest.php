@@ -30,7 +30,7 @@ class AuthControllerTest extends TestCase
         // Check the redirect happens and location is set properly in the header.
         $response->assertViewHas('shopDomain', 'example.myshopify.com');
         $response->assertViewHas(
-            'authUrl',
+            'url',
             'https://example.myshopify.com/admin/oauth/authorize?client_id='.Util::getShopifyConfig('api_key').'&scope=read_products%2Cwrite_products%2Cread_themes&redirect_uri=https%3A%2F%2Flocalhost%2Fauthenticate'
         );
 
@@ -78,5 +78,35 @@ class AuthControllerTest extends TestCase
 
         // Call authenticate with no parameters
         $this->call('get', '/authenticate');
+    }
+
+    public function testTokenRejectsExternalTarget(): void
+    {
+        $response = $this->call('get', '/authenticate/token', [
+            'shop' => 'example.myshopify.com',
+            'target' => 'https://evil.com',
+            'host' => 'ZXhhbXBsZS5teXNob3BpZnkuY29t',
+        ]);
+
+        $response->assertViewHas('target', function (string $target): bool {
+            return ! str_contains($target, 'evil.com');
+        });
+
+        $response->assertViewHas('target', function (string $target): bool {
+            return str_starts_with($target, '/?shop=example.myshopify.com');
+        });
+    }
+
+    public function testTokenAcceptsRelativeTarget(): void
+    {
+        $response = $this->call('get', '/authenticate/token', [
+            'shop' => 'example.myshopify.com',
+            'target' => '/orders',
+            'host' => 'ZXhhbXBsZS5teXNob3BpZnkuY29t',
+        ]);
+
+        $response->assertViewHas('target', function (string $target): bool {
+            return str_starts_with($target, '/orders?shop=example.myshopify.com');
+        });
     }
 }

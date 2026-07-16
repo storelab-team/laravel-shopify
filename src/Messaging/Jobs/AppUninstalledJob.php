@@ -72,6 +72,9 @@ class AppUninstalledJob implements ShouldQueue
 
         // Get the shop
         $shop = $shopQuery->getByDomain($this->domain);
+        if (!$shop) {
+            return true;
+        }
         $shopId = $shop->getId();
 
         // Cancel the current plan
@@ -81,8 +84,7 @@ class AppUninstalledJob implements ShouldQueue
         $shopCommand->clean($shopId);
 
         // Check freemium mode
-        $freemium = Util::getShopifyConfig('billing_freemium_enabled');
-        if ($freemium === true) {
+        if (Util::getShopifyConfig('billing_freemium_enabled') === true) {
             // Add the freemium flag to the shop
             $shopCommand->setAsFreemium($shopId);
         }

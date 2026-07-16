@@ -91,6 +91,7 @@ class VerifyShopify
     {
         // Verify the HMAC (if available)
         $hmacResult = $this->verifyHmac($request);
+
         if ($hmacResult === false) {
             // Invalid HMAC
             throw new SignatureVerificationException('Unable to verify signature.');
@@ -101,7 +102,7 @@ class VerifyShopify
             return $next($request);
         }
 
-        if (!Util::useNativeAppBridge()) {
+        if (!Util::isMPAApplication()) {
             $shop = $this->getShopIfAlreadyInstalled($request);
             $storeResult = !$this->isApiRequest($request) && $shop;
 
@@ -115,6 +116,19 @@ class VerifyShopify
         $tokenSource = $this->getAccessTokenFromRequest($request);
 
         if ($tokenSource === null) {
+            if (!Util::isMPAApplication() && $this->isApiRequest($request)) {
+                throw new HttpException(SessionToken::EXCEPTION_INVALID, Response::HTTP_BAD_REQUEST);
+            }
+
+            $forbiddenMiddlewareMatches = array_intersect(
+                Util::getShopifyConfig('forbidden_web_middleware_groups'),
+                $request->route()?->middleware() ?? []
+            );
+
+            if (filled($forbiddenMiddlewareMatches)) {
+                throw new HttpException('Access denied.', Response::HTTP_FORBIDDEN);
+            }
+
             //Check if there is a store record in the database
             return $this->checkPreviousInstallation($request)
                 // Shop exists, token not available, we need to get one
@@ -305,6 +319,7 @@ class VerifyShopify
                 'shop' => ShopDomain::fromRequest($request)->toNative(),
                 'target' => $target,
                 'host' => $request->get('host'),
+                'locale' => $request->get('locale'),
             ]
         );
     }
@@ -320,7 +335,7 @@ class VerifyShopify
     {
         return Redirect::route(
             Util::getShopifyConfig('route_names.authenticate'),
-            ['shop' => $shopDomain->toNative(), 'host' => request('host')]
+            ['shop' => $shopDomain->toNative(), 'host' => request('host'), 'locale' => request('locale')]
         );
     }
 
@@ -376,20 +391,9 @@ class VerifyShopify
      */
     protected function getAccessTokenFromRequest(Request $request): ?string
     {
-        if (Util::getShopifyConfig('turbo_enabled')) {
-            if ($request->bearerToken()) {
-                // Bearer tokens collect.
-                // Turbo does not refresh the page, values are attached to the same header.
-                $bearerTokens = Collection::make(explode(',', $request->header('Authorization', '')));
-                $newestToken = Str::substr(trim($bearerTokens->last()), 7);
-
-                return $newestToken;
-            }
-
-            return $request->get('token');
-        }
-
-        return $this->isApiRequest($request) ? $request->bearerToken() : $request->get('token');
+        return $this->isApiRequest($request)
+            ? $request->bearerToken()
+            : $request->get('token');
     }
 
     /**
@@ -490,8 +494,32 @@ class VerifyShopify
         return $formatValue($value);
     }
 
+    protected function isApiRoutePath(string $path): bool
+    {
+        $prefixes = Util::getShopifyConfig('api_route_prefixes');
+
+        if (empty($prefixes)) {
+            return false;
+        }
+
+        $path = ltrim($path, '/');
+
+        foreach ($prefixes as $prefix) {
+            $prefix = trim($prefix, '/');
+            if ($prefix === '') {
+                continue;
+            }
+
+            if ($path === $prefix || Str::startsWith($path, $prefix.'/')) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /**
-     * Determine if the request is AJAX or expects JSON.
+     * Determine if the request is an API request.
      *
      * @param Request $request The request object.
      *
@@ -499,7 +527,7 @@ class VerifyShopify
      */
     protected function isApiRequest(Request $request): bool
     {
-        return $request->ajax() || $request->expectsJson();
+        return $request->ajax() || $request->expectsJson() || $this->isApiRoutePath($request->path());
     }
 
     /**
@@ -513,7 +541,7 @@ class VerifyShopify
     {
         $shop = $this->shopQuery->getByDomain(ShopDomain::fromRequest($request), [], true);
 
-        return $shop && $shop->password && ! $shop->trashed();
+        return $shop && $shop->password && ! $shop->trashed() && ! $shop->hasCorruptExpiringTokenState();
     }
 
     /**
@@ -527,7 +555,7 @@ class VerifyShopify
     {
         $shop = $this->shopQuery->getByDomain(ShopDomain::fromRequest($request), [], true);
 
-        return $shop && $shop->password && ! $shop->trashed() ? $shop : null;
+        return $shop && $shop->password && ! $shop->trashed() && ! $shop->hasCorruptExpiringTokenState() ? $shop : null;
     }
 
     /**

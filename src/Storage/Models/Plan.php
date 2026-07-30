@@ -22,7 +22,7 @@ class Plan extends Model
         'discount_duration',
         'discount_amount',
         'discount_percentage',
-        'test'
+        'test',
     ];
 
     /**
